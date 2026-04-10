@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>极客跳动海报工厂 v3.1 - 精准插图版</title>
+    <title>极客跳动海报工厂 v3.3 - 自由调控最终修正版</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -10,11 +10,9 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;300;400;500;700;900&display=swap');
-        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f0f2f5; color: #1f2937; margin: 0; }
-        
-        /* 编辑器面板 */
-        .editor-panel { width: 350px; background: white; padding: 1.25rem; height: 100vh; overflow-y: auto; border-right: 1px solid #e5e7eb; }
-        .poster-canvas { width: 500px; height: 700px; background: white; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); }
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f0f2f5; margin: 0; }
+        .editor-panel { width: 360px; background: white; padding: 1.25rem; height: 100vh; overflow-y: auto; border-right: 1px solid #e5e7eb; }
+        .poster-canvas { width: 500px; height: 700px; background: white; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
         
         /* 控件样式 */
         .control-group { margin-bottom: 1.25rem; padding: 1rem; background: #f9fafb; border-radius: 0.75rem; border: 1px solid #f3f4f6; }
@@ -22,171 +20,98 @@
         input[type="range"] { width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px; appearance: none; cursor: pointer; }
         input[type="range"]::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; background: #3b82f6; border-radius: 50%; }
 
-        /* [优化核心] 自由图片容器 */
-        .free-image-container { 
-            position: absolute;
-            transition: none; 
-            /* 关键：将缩放原点改为左上角，坐标控制更精准 */
-            transform-origin: top left; 
-            display: flex; 
-            justify-content: flex-start; 
-            align-items: flex-start; 
-        }
-        .resizable-image { 
-            max-width: 100%; 
-            transition: transform 0.1s; 
-            transform-origin: top left; /* 确保图片内部也对齐左上 */
-        }
-
-        /* 元素通用定位 */
-        .absolute-element { position: absolute; transition: none; transform-origin: center; }
+        /* 元素通用定位 - 修正：全部以左上角为原点，确保滑块数值即实际坐标 */
+        .absolute-element { position: absolute; transition: none; transform-origin: top left; }
         
-        /* 引用框样式 */
-        .quote-box { background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 0.75rem; padding: 1rem; position: relative; }
-        .quote-icon { position: absolute; right: -10px; top: -10px; font-size: 1.5rem; color: #fbbf24; background: white; padding: 2px; border-radius: 50%; }
-
-        /* 底部图标组样式 (硬编码硬编码硬编码还原参考图) */
-        .capsule-footer-transparent {
-            background: transparent;
-            display: flex;
-            align-items: center;
-            padding: 8px 0;
-            gap: 16px;
-        }
-        .footer-item { display: flex; align-items: center; gap: 6px; }
-        .footer-icon-circle {
-            width: 32px;
-            height: 32px;
-            background: #3b82f6;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-        .footer-text-group { display: flex; flex-direction: column; line-height: 1.1; }
-        .footer-text-main { font-size: 12px; font-weight: 900; color: #000; }
-        .footer-text-sub { font-size: 8px; color: #666; font-weight: 500; }
+        .quote-box { background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 0.75rem; padding: 1rem; }
+        .footer-icon-circle { width: 32px; height: 32px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; }
     </style>
 </head>
-<body class="p-4 flex">
+<body class="flex">
 
-<div id="app" class="flex-1 flex gap-6">
+<div id="app" class="flex w-full">
 
     <div class="editor-panel">
         <h2 class="text-xl font-black mb-6 flex items-center gap-2 border-b pb-2">
-            <i class="fa-solid fa-screwdriver-wrench text-blue-600"></i> 海报全自由调控版
+            <i class="fa-solid fa-sliders text-blue-600"></i> 参数精准调控
         </h2>
 
-        <div class="space-y-6">
-            <section class="control-group">
-                <h3 class="text-xs font-black text-blue-600 mb-3 uppercase">1. 文字文案</h3>
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <label class="text-xs text-gray-400">标题前缀</label>
-                    <input v-model="content.mock_title_prefix" type="text" class="w-full p-2 border rounded text-xs mb-1">
-                    <label class="text-xs text-gray-400">标题核心</label>
-                    <input v-model="content.mock_title_core" type="text" class="w-full p-2 border rounded text-xs mb-1 text-blue-600">
+        <div class="space-y-4">
+            <div class="control-group">
+                <h3 class="text-xs font-black text-gray-500 mb-3 uppercase">1. 顶部文本组</h3>
+                <div v-for="axis in ['x', 'y', 'scale']" class="mb-2">
+                    <div class="control-label"><span>文本 {{axis.toUpperCase()}}</span><span>{{pos.text[axis]}}</span></div>
+                    <input type="range" v-model="pos.text[axis]" :min="axis==='scale'?0.5:0" :max="axis==='scale'?1.5:600" :step="axis==='scale'?0.01:1">
                 </div>
-                <label class="text-xs text-gray-400">副标题</label>
-                <input v-model="content.mock_subtitle" type="text" class="w-full p-2 border rounded mb-3 text-xs">
-                <label class="text-xs text-gray-400">引用框内容</label>
-                <textarea v-model="content.mock_quote" class="w-full p-2 border rounded text-xs h-16"></textarea>
-            </section>
+            </div>
 
-            <section class="control-group">
-                <h3 class="text-xs font-black text-gray-700 mb-3 uppercase">2. 自由插图 (已修正定位)</h3>
-                <button @click="$refs.screenInput.click()" class="w-full py-2.5 bg-gray-100 border rounded-lg text-sm font-bold mb-4 hover:bg-gray-200">上传插图 (PNG/JPG)</button>
-                <input type="file" ref="screenInput" hidden @change="handleScreenUpload">
-                <div class="space-y-4">
-                    <div class="flex flex-col gap-1.5">
-                        <div class="control-label"><span>图片缩放 (Scale)</span><span>{{Math.round(content.imageScale*100)}}%</span></div>
-                        <input type="range" v-model="content.imageScale" min="0.3" max="2.0" step="0.01" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <div class="control-label"><span>X 轴水平位移</span><span>{{content.imageX}}px</span></div>
-                        <input type="range" v-model="content.imageX" min="-100" max="400" step="1" class="w-full">
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <div class="control-label"><span>Y 轴垂直位移 (0 对齐顶部)</span><span>{{content.imageY}}px</span></div>
-                        <input type="range" v-model="content.imageY" min="-100" max="600" step="1" class="w-full">
-                    </div>
+            <div class="control-group">
+                <h3 class="text-xs font-black text-gray-500 mb-3 uppercase">2. 蓝色引用框</h3>
+                <div v-for="axis in ['x', 'y', 'scale']" class="mb-2">
+                    <div class="control-label"><span>引用框 {{axis.toUpperCase()}}</span><span>{{pos.quote[axis]}}</span></div>
+                    <input type="range" v-model="pos.quote[axis]" :min="axis==='scale'?0.5:0" :max="axis==='scale'?1.5:600" :step="axis==='scale'?0.01:1">
                 </div>
-            </section>
+            </div>
 
-            <section class="control-group">
-                <h3 class="font-bold text-sm text-gray-500 mb-3">3. 品牌 Logo</h3>
-                <button @click="$refs.logoInput.click()" class="w-full py-2 bg-white border rounded text-xs">更换左下角 Logo</button>
-                <input type="file" ref="logoInput" hidden @change="handleLogoUpload">
-            </section>
+            <div class="control-group">
+                <h3 class="text-xs font-black text-blue-600 mb-3 uppercase">3. 插图控制 (修正定位)</h3>
+                <button @click="$refs.screenInput.click()" class="w-full py-2 bg-blue-600 text-white rounded text-xs mb-3 font-bold">更换图片</button>
+                <input type="file" ref="screenInput" hidden @change="handleUpload($event, 'screenUrl')">
+                <div v-for="axis in ['x', 'y', 'scale']" class="mb-2">
+                    <div class="control-label"><span>插图 {{axis.toUpperCase()}}</span><span>{{pos.image[axis]}}</span></div>
+                    <input type="range" v-model="pos.image[axis]" :min="axis==='scale'?0.1:0" :max="axis==='scale'?2.0:700" :step="axis==='scale'?0.01:1">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3 class="text-xs font-black text-gray-500 mb-3 uppercase">4. 底部 Logo & 图标</h3>
+                <div class="control-label"><span>图标组 X</span><span>{{pos.icons.x}}</span></div>
+                <input type="range" v-model="pos.icons.x" min="0" max="500" class="mb-2">
+                <div class="control-label"><span>图标组 Y</span><span>{{pos.icons.y}}</span></div>
+                <input type="range" v-model="pos.icons.y" min="500" max="700">
+            </div>
         </div>
 
-        <button @click="downloadPoster" class="w-full bg-black text-white py-4 rounded-2xl font-bold mt-10 active:scale-95 transition shadow-lg">
-            保存高清海报
-        </button>
+        <button @click="downloadPoster" class="w-full bg-black text-white py-4 rounded-xl font-bold mt-6 shadow-lg active:scale-95 transition">下载高清海报</button>
     </div>
 
-    <div class="flex-1 flex justify-center items-start bg-gray-100 pt-8">
-        <div id="poster-canvas" class="poster-canvas bg-white" ref="posterCanvas">
+    <div class="flex-1 flex justify-center items-center bg-gray-200">
+        <div id="poster-canvas" class="poster-canvas">
             
-            <div class="px-10 pt-16 relative z-10">
-                <h1 class="text-4xl font-extrabold text-gray-900 leading-tight">
-                    {{content.mock_title_prefix}} 
-                    <span class="text-blue-600">{{content.mock_title_core}}</span>
-                </h1>
-                <p class="text-xl mt-2 font-light text-gray-600 tracking-tight">{{content.mock_subtitle}}</p>
-                
-                <div class="mt-6 quote-box">
-                    <i class="fa-solid fa-quote-right quote-icon"></i>
-                    <p class="text-[13px] text-blue-700/80 leading-relaxed font-medium">
-                        {{content.mock_quote}}
+            <div class="absolute-element" :style="{ left: pos.text.x + 'px', top: pos.text.y + 'px', transform: `scale(${pos.text.scale})`, width: '400px' }">
+                <h1 class="text-4xl font-black text-gray-900">跨境贸易 <span class="text-blue-600">AI Agent</span></h1>
+                <p class="text-xl font-medium text-gray-500 mt-1">自动监测库存数据 / 商品自动上架</p>
+            </div>
+
+            <div class="absolute-element" :style="{ left: pos.quote.x + 'px', top: pos.quote.y + 'px', transform: `scale(${pos.quote.scale})`, width: '420px' }">
+                <div class="quote-box">
+                    <p class="text-[13px] text-blue-700 font-bold leading-relaxed">
+                        自动完成商品上架 / 竞品监控 / 订单对账 / 库存预警等标准化运营动作
                     </p>
                 </div>
             </div>
 
-            <div class="free-image-container px-4" 
-                 :style="{ left: content.imageX + 'px', top: content.imageY + 'px', transform: `scale(${content.imageScale})` }">
-                <img v-if="content.screenUrl" 
-                     :src="content.screenUrl" 
-                     class="resizable-image">
-                <div v-else class="mt-20 w-80 h-40 bg-gray-50 border-2 border-dashed rounded-2xl flex items-center justify-center text-gray-300">
-                    等待插图上传
-                </div>
+            <div class="absolute-element" :style="{ left: pos.image.x + 'px', top: pos.image.y + 'px', transform: `scale(${pos.image.scale})` }">
+                <img v-if="content.screenUrl" :src="content.screenUrl" class="max-w-[420px] object-contain">
+                <div v-else class="w-80 h-48 bg-gray-50 border-2 border-dashed flex items-center justify-center text-gray-300 rounded-xl">待上传插图</div>
             </div>
 
-            <div class="absolute bottom-6 w-full px-10 flex justify-between items-end bg-white">
-                <div class="h-10 w-36 flex items-center">
-                    <img :src="config.logoUrl" class="max-h-full max-w-full object-contain object-left">
-                </div>
+            <div class="absolute bottom-10 left-10">
+                <img src="https://geekdance.com/wp-content/uploads/2021/01/p_01.png" class="h-8 object-contain">
+            </div>
 
-                <div class="capsule-footer-transparent">
-                    <div class="footer-item">
-                        <div class="footer-icon-circle"><i class="fa-solid fa-link text-[12px]"></i></div>
-                        <div class="footer-text-group">
-                            <span class="footer-text-main">小程序</span>
-                            <span class="footer-text-sub">定制开发</span>
-                        </div>
-                    </div>
-                    <div class="footer-item">
-                        <div class="footer-icon-circle"><i class="fa-solid fa-a text-[12px]"></i></div>
-                        <div class="footer-text-group">
-                            <span class="footer-text-main">APP</span>
-                            <span class="footer-text-sub">定制开发</span>
-                        </div>
-                    </div>
-                    <div class="footer-item">
-                        <div class="footer-icon-circle"><i class="fa-solid fa-table-cells-large text-[12px]"></i></div>
-                        <div class="footer-text-group">
-                            <span class="footer-text-main">系统</span>
-                            <span class="footer-text-sub">定制开发</span>
-                        </div>
+            <div class="absolute-element flex gap-6" :style="{ left: pos.icons.x + 'px', top: pos.icons.y + 'px' }">
+                <div v-for="item in footerIcons" class="flex items-center gap-2">
+                    <div class="footer-icon-circle"><i :class="item.icon"></i></div>
+                    <div class="flex flex-col leading-none">
+                        <span class="text-[12px] font-black">{{item.main}}</span>
+                        <span class="text-[8px] text-gray-400 font-bold mt-1">定制开发</span>
                     </div>
                 </div>
             </div>
 
-            <div class="absolute right-[-70px] bottom-24 text-[130px] font-black text-gray-50/70 pointer-events-none -z-10" style="line-height:0.8">
-                GEEK<br>DANCE
+            <div class="absolute right-[-40px] top-1/2 -translate-y-1/2 text-[100px] font-black text-gray-50 -z-10 rotate-90 uppercase pointer-events-none">
+                GeekDance
             </div>
         </div>
     </div>
@@ -195,52 +120,43 @@
 
 <script>
     const { createApp, ref } = Vue;
-
     createApp({
         setup() {
-            // 默认配置数据 (基于 v3.0 保留)
-            const config = ref({
-                logoUrl: 'https://geekdance.com/wp-content/uploads/2021/01/p_01.png'
-            });
-
-            // 营销内容数据 (参考图文案还原)
             const content = ref({
-                mock_title_prefix: '跨境贸易',
-                mock_title_core: 'AI Agent',
-                mock_subtitle: '自动监测库存数据 / 商品自动上架',
-                mock_quote: '自动完成商品上架 / 竞品监控 / 订单对账 / 库存预警等标准化运营动作',
-                screenUrl: '', // 初始不加载插图，等待上传
-                imageScale: 0.85,
-                imageX: 40, // [指令修正] 默认水平偏移
-                imageY: 240 // [指令修正] 默认垂直位置，在文案下方
+                screenUrl: ''
             });
 
-            // 文件上传处理逻辑
-            const handleLogoUpload = (e) => {
+            // 初始化所有参数，保证默认位置就在画面中
+            const pos = ref({
+                text: { x: 40, y: 60, scale: 1.0 },
+                quote: { x: 40, y: 160, scale: 1.0 },
+                image: { x: 40, y: 280, scale: 1.0 },
+                icons: { x: 180, y: 645 }
+            });
+
+            const footerIcons = ref([
+                { main: '小程序', icon: 'fa-solid fa-mobile' },
+                { main: 'APP', icon: 'fa-solid fa-tablet' },
+                { main: '系统', icon: 'fa-solid fa-desktop' }
+            ]);
+
+            const handleUpload = (e, target) => {
                 const file = e.target.files[0];
-                if (file) config.value.logoUrl = URL.createObjectURL(file);
+                if (file) content.value[target] = URL.createObjectURL(file);
             };
 
-            const handleScreenUpload = (e) => {
-                const file = e.target.files[0];
-                if (file) content.value.screenUrl = URL.createObjectURL(file);
-            };
-
-            // 下载海报逻辑 (html2canvas实现)
             const downloadPoster = () => {
-                const element = document.getElementById('poster-canvas');
-                html2canvas(element, { useCORS: true, scale: 3 }).then(canvas => {
-                    const link = document.createElement('a');
-                    link.download = `GeekDance_Poster.png`;
-                    link.href = canvas.toDataURL();
-                    link.click();
+                html2canvas(document.getElementById('poster-canvas'), { useCORS: true, scale: 3 }).then(canvas => {
+                    const a = document.createElement('a');
+                    a.download = `Poster.png`;
+                    a.href = canvas.toDataURL();
+                    a.click();
                 });
             };
 
-            return { config, content, handleLogoUpload, handleScreenUpload, downloadPoster };
+            return { content, pos, footerIcons, handleUpload, downloadPoster };
         }
     }).mount('#app');
 </script>
-
 </body>
 </html>
