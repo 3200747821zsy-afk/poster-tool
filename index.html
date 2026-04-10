@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>极客跳动 AIGC 海报生产系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap');
+        body { font-family: 'Noto Sans SC', sans-serif; background-color: #f0f2f5; }
+        .preview-canvas { width: 500px; height: 700px; background: white; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
+        .input-group { border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-bottom: 1rem; }
+    </style>
+</head>
+<body class="p-6">
+<div id="app" class="max-w-7xl mx-auto flex gap-8">
+
+    <div class="w-1/3 bg-white p-6 rounded-2xl shadow-sm h-[90vh] overflow-y-auto">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-red-500"></i> 编辑器面板
+        </h2>
+
+        <div class="input-group">
+            <label class="block text-sm font-bold text-gray-700 mb-2">选择排版模板</label>
+            <select v-model="currentTemplate" class="w-full p-2 border rounded-lg bg-gray-50">
+                <option value="distribution">业务分布页</option>
+                <option value="mockup">场景案例 (设备展示)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label class="block text-sm font-bold text-gray-700 mb-2">品牌颜色 & Logo</label>
+            <div class="flex gap-4 mb-3">
+                <input v-model="config.brandColor" type="color" class="h-10 w-20 cursor-pointer">
+                <button @click="$refs.logoInput.click()" class="text-xs bg-gray-100 px-3 rounded border">上传 Logo</button>
+                <input type="file" ref="logoInput" hidden @change="handleLogoUpload">
+            </div>
+            <input v-model="config.companyName" placeholder="公司名称" class="w-full p-2 border rounded text-sm">
+        </div>
+
+        <div v-if="currentTemplate === 'distribution'" class="space-y-4">
+            <label class="block text-sm font-bold text-red-500">业务分布内容</label>
+            <textarea v-model="content.dist_domestic" placeholder="国内城市" class="w-full p-2 border rounded text-sm" rows="3"></textarea>
+            <textarea v-model="content.dist_oversea" placeholder="海外国家" class="w-full p-2 border rounded text-sm" rows="3"></textarea>
+            <button @click="$refs.mascotInput.click()" class="w-full text-sm py-2 bg-red-50 text-red-600 rounded">替换 3D 吉祥物图片</button>
+            <input type="file" ref="mascotInput" hidden @change="handleMascotUpload">
+        </div>
+
+        <div v-if="currentTemplate === 'mockup'" class="space-y-4">
+            <label class="block text-sm font-bold text-blue-500">设备展示内容</label>
+            <input v-model="content.mock_title" placeholder="行业标题" class="w-full p-2 border rounded text-sm">
+            <input v-model="content.mock_subtitle" placeholder="描述文案" class="w-full p-2 border rounded text-sm">
+            <button @click="$refs.screenInput.click()" class="w-full text-sm py-2 bg-blue-50 text-blue-600 rounded">上传屏幕截图</button>
+            <input type="file" ref="screenInput" hidden @change="handleScreenUpload">
+        </div>
+
+        <div class="mt-8">
+            <button @click="downloadImage" class="w-full bg-slate-800 text-white py-4 rounded-xl font-bold hover:bg-black transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-download"></i> 下载高清海报
+            </button>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col items-center">
+        <div id="poster-canvas" class="preview-canvas" :style="{'--brand-color': config.brandColor}">
+            
+            <div class="p-8 flex justify-between items-center">
+                <img :src="config.logoUrl" class="h-8 object-contain">
+                <div class="text-[10px] font-bold text-gray-400">GEEKDANCE</div>
+            </div>
+
+            <div v-if="currentTemplate === 'distribution'" class="px-8 mt-4">
+                <h1 class="text-4xl font-light text-gray-400">极客跳动</h1>
+                <h2 class="text-4xl font-bold" :style="{color: config.brandColor}">业务分布</h2>
+                
+                <div class="mt-10 relative h-48 bg-gray-50 rounded-xl overflow-hidden">
+                    <div class="absolute inset-0 opacity-10" :style="{backgroundImage: `radial-gradient(${config.brandColor} 1px, transparent 1px)`, backgroundSize: '10px 10px'}"></div>
+                    <img :src="content.mascotUrl" class="absolute right-4 bottom-0 w-24">
+                    <div class="absolute right-12 top-10 bg-white shadow-sm px-2 py-1 rounded text-[10px] border">我在这</div>
+                </div>
+
+                <div class="mt-10 space-y-8">
+                    <div class="flex gap-4">
+                        <span class="text-4xl font-light" :style="{color: config.brandColor}">国内</span>
+                        <p class="text-sm text-gray-500 leading-relaxed border-l pl-4">{{content.dist_domestic}}</p>
+                    </div>
+                    <div class="flex gap-4">
+                        <span class="text-4xl font-light" :style="{color: config.brandColor}">海外</span>
+                        <p class="text-sm text-gray-500 leading-relaxed border-l pl-4">{{content.dist_oversea}}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTemplate === 'mockup'" class="px-8 mt-4">
+                <h1 class="text-3xl font-bold">{{content.mock_title}}</h1>
+                <p class="text-lg mt-2 font-light text-gray-500">{{content.mock_subtitle}}</p>
+                
+                <div class="mt-8 p-4 rounded-2xl border-2" :style="{borderColor: config.brandColor + '22'}">
+                    <div class="bg-gray-100 rounded-lg h-64 overflow-hidden relative shadow-inner">
+                        <img v-if="content.screenUrl" :src="content.screenUrl" class="w-full h-full object-cover">
+                        <div v-else class="flex items-center justify-center h-full text-gray-300">待上传截图</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 w-full p-6 bg-gray-50 flex justify-between items-center border-t">
+                <div class="font-bold text-sm">{{config.companyName}}</div>
+                <div class="flex gap-4 text-[10px] font-bold">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-cube text-blue-500"></i> 小程序</span>
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-mobile-screen text-red-500"></i> APP</span>
+                </div>
+            </div>
+        </div>
+        <p class="mt-4 text-gray-400 text-sm italic">预览画布基于 500x700 比例适配展示</p>
+    </div>
+
+</div>
+
+<script>
+    const { createApp, ref } = Vue;
+    createApp({
+        setup() {
+            const currentTemplate = ref('distribution');
+            const config = ref({
+                brandColor: '#EE2222',
+                companyName: '极客跳动 GeekDance',
+                logoUrl: 'https://geekdance.com/wp-content/uploads/2021/01/p_01.png'
+            });
+
+            const content = ref({
+                dist_domestic: '深圳、广州、香港、台湾、北京、上海...',
+                dist_oversea: '美国、法国、新加坡、日本...',
+                mascotUrl: 'https://geekdance.com/wp-content/uploads/2021/01/p_01.png',
+                mock_title: '跨境贸易 AI Agent',
+                mock_subtitle: '自动监测库存数据 / 商品自动上架',
+                screenUrl: ''
+            });
+
+            // 文件上传处理
+            const handleLogoUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) config.value.logoUrl = URL.createObjectURL(file);
+            };
+            const handleMascotUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) content.value.mascotUrl = URL.createObjectURL(file);
+            };
+            const handleScreenUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) content.value.screenUrl = URL.createObjectURL(file);
+            };
+
+            // 下载功能 (html2canvas)
+            const downloadImage = () => {
+                const element = document.getElementById('poster-canvas');
+                html2canvas(element, { useCORS: true, scale: 2 }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `GeekDance_Poster_${Date.now()}.png`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                });
+            };
+
+            return { currentTemplate, config, content, handleLogoUpload, handleMascotUpload, handleScreenUpload, downloadImage };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
