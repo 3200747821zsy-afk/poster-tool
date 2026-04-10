@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>RedCard Factory v4.0 - 智能生成与拖拽版</title>
+    <title>RedCard Factory v5.0 - AI 逻辑解析引擎</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/interact.js/1.10.11/interact.min.js"></script>
@@ -10,181 +10,214 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans SC', sans-serif; background: #f3f4f6; overflow: hidden; }
+        body { font-family: 'Noto Sans SC', sans-serif; background: #1a1a1a; overflow: hidden; color: #333; }
         
-        /* 画布严格 3:4 比例 */
-        .canvas-container { width: 450px; height: 600px; background: white; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.2); overflow: hidden; border: 1px solid #ddd; }
+        /* 3:4 标准画布 */
+        .canvas-container { 
+            width: 450px; height: 600px; 
+            background: white; position: relative; 
+            overflow: hidden; border-radius: 4px;
+            box-shadow: 0 0 100px rgba(0,0,0,0.5);
+        }
         
-        /* 可拖拽元素样式 */
-        .draggable { position: absolute; cursor: move; touch-action: none; user-select: none; transition: box-shadow 0.2s; border: 1px border-transparent; }
-        .draggable:hover { box-shadow: 0 0 0 2px #3b82f6; border-radius: 4px; }
+        /* 元素基础样式 */
+        .draggable { position: absolute; transition: transform 0.1s ease-out; transform-origin: top left; cursor: move; }
+        .draggable:hover { outline: 2px solid #3b82f6; outline-offset: 4px; }
+        .active-el { outline: 2px solid #3b82f6 !important; outline-offset: 4px; z-index: 50; }
+
+        /* 极客跳动视觉组件 */
+        .glass-card { 
+            background: rgba(37, 99, 235, 0.03); 
+            border: 1px solid rgba(37, 99, 235, 0.15); 
+            border-radius: 12px; padding: 16px; 
+            backdrop-filter: blur(10px);
+        }
         
-        .glass-box { background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 12px; padding: 12px; backdrop-filter: blur(8px); }
-        .sidebar { width: 320px; height: 100vh; background: white; border-right: 1px solid #e5e7eb; z-index: 10; }
-        .active-el { box-shadow: 0 0 0 2px #3b82f6 !important; }
+        /* AI 扫描线动画 */
+        .scan-line {
+            position: absolute; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+            box-shadow: 0 0 15px #3b82f6;
+            animation: scan 2s infinite linear;
+            z-index: 100;
+        }
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
     </style>
 </head>
-<body class="flex">
+<body class="flex h-screen">
 
-<div id="app" class="flex w-full h-screen">
-    <div class="sidebar flex flex-col">
-        <div class="p-6 border-b">
-            <h1 class="text-xl font-black text-blue-600 flex items-center gap-2">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> 智能生成
-            </h1>
+<div id="app" class="flex w-full">
+    <div class="w-[380px] bg-white border-right p-6 flex flex-col shadow-2xl z-20">
+        <div class="mb-8">
+            <h1 class="text-2xl font-black text-blue-600 tracking-tighter italic">GENESIS ENGINE</h1>
+            <p class="text-[10px] text-gray-400 font-bold uppercase mt-1">AI Layout Reconstruction System</p>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 space-y-6">
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                <label class="block text-xs font-bold text-blue-800 mb-2 uppercase tracking-wider">1. 参考布局图</label>
-                <div @click="$refs.refInput.click()" class="w-full h-24 border-2 border-dashed border-blue-200 rounded-lg flex items-center justify-center cursor-pointer bg-white hover:bg-blue-50 transition">
-                    <span class="text-xs text-blue-400" v-if="!refImage">上传布局样张</span>
-                    <img v-else :src="refImage" class="h-full w-full object-cover rounded-lg">
+        <div class="flex-1 space-y-6">
+            <div class="space-y-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <div class="group relative">
+                    <label class="text-[11px] font-black text-gray-500 mb-2 block uppercase">Step 1: 参考布局解析图</label>
+                    <div @click="$refs.refFile.click()" class="h-32 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center cursor-pointer bg-white group-hover:border-blue-400 transition-all overflow-hidden">
+                        <img v-if="refImage" :src="refImage" class="w-full h-full object-cover">
+                        <span v-else class="text-gray-300 text-xs font-bold">点击上传样张</span>
+                    </div>
+                    <input type="file" ref="refFile" hidden @change="handleUpload($event, 'refImage')">
                 </div>
-                <input type="file" ref="refInput" hidden @change="uploadRef">
 
-                <label class="block text-xs font-bold text-blue-800 mt-4 mb-2 uppercase tracking-wider">2. 营销文案</label>
-                <textarea v-model="rawText" class="w-full p-2 text-sm border rounded-lg h-20 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="粘贴你的文案内容..."></textarea>
-                
-                <button @click="aiGenerate" class="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition">
-                    解析并生成布局
+                <div>
+                    <label class="text-[11px] font-black text-gray-500 mb-2 block uppercase">Step 2: 注入业务文案</label>
+                    <textarea v-model="userInput" class="w-full h-24 p-3 text-sm border-none rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-blue-500 outline-none" placeholder="输入原始文案，AI将自动结构化..."></textarea>
+                </div>
+
+                <button @click="startAIAnalysis" :disabled="isAnalyzing" class="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-sm tracking-widest hover:bg-blue-700 transition-all active:scale-95 disabled:bg-gray-300">
+                    {{ isAnalyzing ? 'ANALYZING...' : '像素解析 & 生成' }}
                 </button>
             </div>
 
-            <div v-if="selectedId" class="space-y-4 pt-4 border-t">
-                <h3 class="text-xs font-black text-gray-400 uppercase">属性调节: {{selectedId}}</h3>
+            <div v-if="selectedId" class="p-4 border rounded-2xl space-y-4">
+                <p class="text-[10px] font-black text-blue-600 uppercase italic">Manual Adjustment: {{selectedId}}</p>
                 <div>
-                    <div class="flex justify-between text-[10px] mb-1"><span>缩放比例</span><span>{{elements[selectedId].scale}}x</span></div>
-                    <input type="range" v-model="elements[selectedId].scale" min="0.2" max="2.5" step="0.01" class="w-full">
+                    <div class="flex justify-between text-[10px] font-bold text-gray-400 mb-1"><span>元素缩放</span><span>{{elements[selectedId].scale.toFixed(2)}}x</span></div>
+                    <input type="range" v-model="elements[selectedId].scale" min="0.5" max="2" step="0.01" class="w-full">
                 </div>
-                <button @click="resetElement(selectedId)" class="w-full py-1 text-xs text-gray-500 border border-gray-200 rounded">重置位置</button>
             </div>
         </div>
 
-        <div class="p-4 border-t bg-gray-50">
-            <button @click="download" class="w-full bg-black text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-                <i class="fa-solid fa-download"></i> 导出高清海报
-            </button>
-        </div>
+        <button @click="exportPoster" class="w-full bg-black text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest mt-4">
+            导出 300DPI 图像
+        </button>
     </div>
 
-    <div class="flex-1 bg-gray-200 flex items-center justify-center">
-        <div id="poster-canvas" class="canvas-container" @mousedown="selectedId = null">
-            
-            <div class="absolute inset-0 opacity-[0.03] select-none flex items-center justify-center overflow-hidden">
-                <span class="text-[120px] font-black rotate-45">GeekDance</span>
-            </div>
+    <div class="flex-1 flex flex-col items-center justify-center relative">
+        <div class="canvas-container" id="poster-canvas" @mousedown="selectedId = null">
+            <div v-if="isAnalyzing" class="scan-line"></div>
 
-            <div id="textGroup" class="draggable p-2" 
+            <div id="textGroup" class="draggable p-2 w-[400px]" 
                  :class="{'active-el': selectedId === 'textGroup'}"
-                 :style="getStyle('textGroup')" @mousedown.stop="selectedId = 'textGroup'">
-                <h2 class="text-4xl font-black text-gray-900 leading-tight">{{elements.textGroup.title}}</h2>
-                <p class="text-xl font-medium text-gray-500 mt-1">{{elements.textGroup.sub}}</p>
+                 :style="getTransform('textGroup')" @mousedown.stop="selectedId = 'textGroup'">
+                <h2 class="text-[38px] font-black text-gray-900 leading-[1.1] tracking-tight" v-html="elements.textGroup.title"></h2>
+                <p class="text-xl font-bold text-gray-400 mt-2">{{elements.textGroup.sub}}</p>
             </div>
 
-            <div id="quoteBox" class="draggable glass-box w-[400px]" 
+            <div id="quoteBox" class="draggable glass-card w-[410px]"
                  :class="{'active-el': selectedId === 'quoteBox'}"
-                 :style="getStyle('quoteBox')" @mousedown.stop="selectedId = 'quoteBox'">
-                <p class="text-sm text-blue-700 font-bold leading-relaxed">{{elements.quoteBox.text}}</p>
+                 :style="getTransform('quoteBox')" @mousedown.stop="selectedId = 'quoteBox'">
+                <p class="text-[13px] text-blue-700 font-black leading-relaxed">
+                    {{elements.quoteBox.content}}
+                </p>
             </div>
 
-            <div id="mainImage" class="draggable" 
+            <div id="mainImage" class="draggable"
                  :class="{'active-el': selectedId === 'mainImage'}"
-                 :style="getStyle('mainImage')" @mousedown.stop="selectedId = 'mainImage'">
-                <div @click="$refs.mainImgInput.click()" class="cursor-pointer group relative">
-                    <img :src="mainImage" class="max-w-xs object-contain" v-if="mainImage">
-                    <div v-else class="w-64 h-48 bg-gray-100 flex items-center justify-center text-gray-300 border-2 border-dashed rounded-xl">点击上传素材</div>
-                    <div class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition rounded-xl"></div>
+                 :style="getTransform('mainImage')" @mousedown.stop="selectedId = 'mainImage'">
+                <div @click="$refs.mainFile.click()" class="relative group cursor-pointer">
+                    <img v-if="mainImage" :src="mainImage" class="max-w-md object-contain">
+                    <div v-else class="w-64 h-48 bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 font-bold rounded-2xl">点击上传主体素材</div>
                 </div>
-                <input type="file" ref="mainImgInput" hidden @change="uploadMain">
+                <input type="file" ref="mainFile" hidden @change="handleUpload($event, 'mainImage')">
             </div>
 
-            <div class="absolute bottom-10 left-10 flex items-center justify-between w-[420px] pointer-events-none">
-                <img src="https://geekdance.com/wp-content/uploads/2021/01/p_01.png" class="h-8">
+            <div class="absolute bottom-8 left-10 right-10 flex justify-between items-end pointer-events-none border-t pt-4 border-gray-100">
+                <img src="https://geekdance.com/wp-content/uploads/2021/01/p_01.png" class="h-6">
                 <div class="flex gap-4">
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-mobile-screen text-blue-600"></i><span class="text-[10px] font-bold">小程序</span></div>
-                    <div class="flex items-center gap-1"><i class="fa-solid fa-tablet-screen-button text-blue-600"></i><span class="text-[10px] font-bold">APP定制</span></div>
+                    <div class="flex flex-col items-end">
+                        <span class="text-[12px] font-black">AI AGENT</span>
+                        <span class="text-[8px] text-gray-400 font-bold tracking-widest uppercase">Custom Solution</span>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <p class="mt-8 text-gray-500 text-xs font-bold uppercase tracking-[0.3em]">GeekDance Genesis System v5.0</p>
     </div>
 </div>
 
 <script>
-    const { createApp, ref, onMounted, watch } = Vue;
+const { createApp, ref, onMounted } = Vue;
 
-    createApp({
-        setup() {
-            const refImage = ref(null);
-            const mainImage = ref(null);
-            const rawText = ref('');
-            const selectedId = ref(null);
+createApp({
+    setup() {
+        const refImage = ref(null);
+        const mainImage = ref(null);
+        const userInput = ref('跨境贸易 AI Agent\n自动完成商品上架 / 竞品监控 / 订单对账 / 库存预警等标准化运营动作');
+        const isAnalyzing = ref(false);
+        const selectedId = ref(null);
 
-            // 初始化所有元素的状态，支持 localStorage 方案保存
-            const elements = ref(JSON.parse(localStorage.getItem('redcard_layout')) || {
-                textGroup: { x: 40, y: 60, scale: 1, title: '跨境贸易 AI Agent', sub: '自动监测库存 / 商品自动上架' },
-                quoteBox: { x: 40, y: 180, scale: 1, text: '自动完成商品上架、竞品监控、订单对账、库存预警等标准化运营动作' },
-                mainImage: { x: 40, y: 300, scale: 1 }
+        // 核心数据模型：x,y,scale 是 AI 解析的目标
+        const elements = ref({
+            textGroup: { x: 40, y: 60, scale: 1, title: '跨境贸易 <span class="text-blue-600">AI Agent</span>', sub: '自动监测库存 / 自动上架' },
+            quoteBox: { x: 40, y: 190, scale: 1, content: '正在等待 AI 解析文案结构...' },
+            mainImage: { x: 40, y: 320, scale: 0.8 }
+        });
+
+        // 核心函数：执行 AI 逻辑解析
+        const startAIAnalysis = async () => {
+            if (!refImage.value) { alert("请先上传参考布局图"); return; }
+            isAnalyzing.value = true;
+
+            // --- 模拟 AI 视觉解析过程 (Vision API Logic) ---
+            // 1. 模拟延迟解析参考图几何重心
+            await new Promise(r => setTimeout(r, 1500));
+
+            // 2. 模拟布局映射：根据样张识别，将元素映射到极客跳动的 3:4 画布坐标
+            // 假设 AI 识别出参考图中标题偏上、插图偏下的结构
+            elements.value.textGroup.y = 50 + Math.random() * 20;
+            elements.value.mainImage.y = 280 + Math.random() * 50;
+            
+            // 3. 模拟语义拆解：解析 userInput 文本
+            const lines = userInput.value.split('\n');
+            if (lines.length > 0) {
+                elements.value.textGroup.title = lines[0].replace('AI Agent', '<span class="text-blue-600">AI Agent</span>');
+                elements.value.quoteBox.content = lines[1] || '自动处理标准化运营动作，提升 B2B 跨境效率';
+            }
+
+            // 4. 解析视觉权重 (Scale)
+            elements.value.mainImage.scale = 0.9 + (Math.random() * 0.2);
+
+            isAnalyzing.value = false;
+        };
+
+        const handleUpload = (e, target) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                if (target === 'refImage') refImage.value = url;
+                if (target === 'mainImage') mainImage.value = url;
+            }
+        };
+
+        const getTransform = (id) => ({
+            transform: `translate(${elements.value[id].x}px, ${elements.value[id].y}px) scale(${elements.value[id].scale})`
+        });
+
+        const exportPoster = () => {
+            const canvas = document.getElementById('poster-canvas');
+            html2canvas(canvas, { scale: 3, useCORS: true }).then(c => {
+                const link = document.createElement('a');
+                link.download = `GeekDance_AI_Output.png`;
+                link.href = c.toDataURL();
+                link.click();
             });
+        };
 
-            // 监听变化，实时自动保存方案
-            watch(elements, (val) => {
-                localStorage.setItem('redcard_layout', JSON.stringify(val));
-            }, { deep: true });
-
-            const getStyle = (id) => ({
-                transform: `translate(${elements.value[id].x}px, ${elements.value[id].y}px) scale(${elements.value[id].scale})`
-            });
-
-            // AI 智能生成模拟 (解析参考图布局)
-            const aiGenerate = () => {
-                alert("AI 正在解析参考图布局...");
-                // 模拟 AI 解析出的坐标偏移（参考布局即可）
-                // 实际生产中这里对接后端 AI 解析接口
-                elements.value.textGroup.x = Math.random() * 50;
-                elements.value.textGroup.y = 50 + Math.random() * 30;
-                elements.value.mainImage.x = 20 + Math.random() * 50;
-                elements.value.mainImage.y = 250 + Math.random() * 100;
-                
-                if (rawText.value) {
-                    elements.value.textGroup.title = rawText.value.substring(0, 10);
-                }
-            };
-
-            const uploadRef = (e) => { refImage.value = URL.createObjectURL(e.target.files[0]); };
-            const uploadMain = (e) => { mainImage.value = URL.createObjectURL(e.target.files[0]); };
-
-            const resetElement = (id) => {
-                elements.value[id].x = 40;
-                elements.value[id].scale = 1;
-            };
-
-            const download = () => {
-                const canvas = document.getElementById('poster-canvas');
-                html2canvas(canvas, { scale: 3, useCORS: true }).then(c => {
-                    const link = document.createElement('a');
-                    link.download = `GeekDance_Poster_${Date.now()}.png`;
-                    link.href = c.toDataURL();
-                    link.click();
-                });
-            };
-
-            onMounted(() => {
-                // 初始化拖拽库：Interact.js
-                interact('.draggable').draggable({
-                    listeners: {
-                        move(event) {
-                            const id = event.target.id;
-                            elements.value[id].x += event.dx;
-                            elements.value[id].y += event.dy;
-                        }
+        onMounted(() => {
+            // 初始化专业拖拽引擎：Interact.js
+            interact('.draggable').draggable({
+                listeners: {
+                    move(event) {
+                        const target = event.target;
+                        const id = target.id;
+                        // 实现像素级坐标更新，解除死板的滑块限制
+                        elements.value[id].x += event.dx;
+                        elements.value[id].y += event.dy;
                     }
-                });
+                }
             });
+        });
 
-            return { refImage, mainImage, rawText, elements, selectedId, getStyle, uploadRef, uploadMain, aiGenerate, download, resetElement };
-        }
-    }).mount('#app');
+        return { refImage, mainImage, userInput, isAnalyzing, selectedId, elements, startAIAnalysis, handleUpload, getTransform, exportPoster };
+    }
+}).mount('#app');
 </script>
 
 </body>
