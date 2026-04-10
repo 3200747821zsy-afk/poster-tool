@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>极客跳动海报工厂 v2.7 - 精准底栏版</title>
+    <title>极客跳动海报工厂 v2.8 - 自由定义胶囊版</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -22,32 +22,39 @@
         .free-image-container { width: 100%; margin-top: 1rem; display: flex; justify-content: center; align-items: flex-start; }
         .resizable-image { max-width: 100%; transition: transform 0.1s; }
 
-        /* [核心更新] 100% 还原胶囊底栏 */
+        /* [还原核心] 胶囊底栏容器 */
         .capsule-footer {
             background: white;
             border-radius: 999px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
             display: flex;
             align-items: center;
-            padding: 8px 24px;
-            gap: 20px;
+            padding: 8px 20px;
+            gap: 16px;
         }
-        .footer-item { display: flex; align-items: center; gap: 8px; }
+        .footer-item { display: flex; align-items: center; gap: 6px; }
+        
+        /* 图标圆形容器 - 支持自定义背景图 */
         .footer-icon-circle {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             background: #3b82f6;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 14px;
+            overflow: hidden;
             flex-shrink: 0;
         }
+        .footer-icon-circle img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         .footer-text-group { display: flex; flex-direction: column; line-height: 1.1; }
-        .footer-text-main { font-size: 13px; font-weight: 900; color: #000; }
-        .footer-text-sub { font-size: 9px; color: #333; font-weight: 500; }
+        .footer-text-main { font-size: 12px; font-weight: 900; color: #000; white-space: nowrap; }
+        .footer-text-sub { font-size: 9px; color: #666; font-weight: 500; white-space: nowrap; }
     </style>
 </head>
 <body class="p-4 flex">
@@ -56,58 +63,67 @@
 
     <div class="editor-panel">
         <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
-            <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> 海报精准优化
+            <i class="fa-solid fa-layer-group text-blue-600"></i> 海报工厂 v2.8
         </h2>
 
         <div class="space-y-6">
             <section class="bg-gray-50 p-4 rounded-xl border">
                 <h3 class="font-bold text-sm text-gray-500 mb-3">文字内容</h3>
-                <input v-model="content.mock_title_prefix" type="text" placeholder="标题前缀" class="w-full p-2 border rounded mb-2 text-sm">
-                <input v-model="content.mock_title_core" type="text" placeholder="标题核心" class="w-full p-2 border rounded mb-2 text-sm">
-                <input v-model="content.mock_subtitle" type="text" placeholder="副标题" class="w-full p-2 border rounded mb-2 text-sm">
-                <textarea v-model="content.mock_quote" class="w-full p-2 border rounded text-sm h-20"></textarea>
+                <div class="flex gap-2 mb-2">
+                    <input v-model="content.mock_title_prefix" type="text" class="w-1/2 p-2 border rounded text-sm">
+                    <input v-model="content.mock_title_core" type="text" class="w-1/2 p-2 border rounded text-sm">
+                </div>
+                <input v-model="content.mock_subtitle" type="text" class="w-full p-2 border rounded mb-2 text-sm">
+                <textarea v-model="content.mock_quote" class="w-full p-2 border rounded text-sm h-16"></textarea>
             </section>
 
             <section class="bg-gray-50 p-4 rounded-xl border">
-                <h3 class="font-bold text-sm text-gray-500 mb-3">主体截图</h3>
-                <button @click="$refs.screenInput.click()" class="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">更换截图</button>
+                <h3 class="font-bold text-sm text-gray-500 mb-3">主体截图展示</h3>
+                <button @click="$refs.screenInput.click()" class="w-full py-2 bg-blue-600 text-white rounded-lg text-sm mb-3">更换主体图</button>
                 <input type="file" ref="screenInput" hidden @change="handleScreenUpload">
-                <div class="mt-4">
-                    <div class="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>缩放图片</span>
-                        <span>{{Math.round(content.imageScale*100)}}%</span>
+                <div class="space-y-4">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] text-gray-400">缩放: {{Math.round(content.imageScale*100)}}%</span>
+                        <input type="range" v-model="content.imageScale" min="0.1" max="2.0" step="0.01" class="w-full">
                     </div>
-                    <input type="range" v-model="content.imageScale" min="0.3" max="2.0" step="0.01" class="w-full">
-                </div>
-                <div class="mt-4">
-                    <div class="flex justify-between text-xs text-gray-400 mb-1">
-                        <span>上下位置</span>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] text-gray-400">上下位置: {{content.imageY}}px</span>
+                        <input type="range" v-model="content.imageY" min="-100" max="300" step="1" class="w-full">
                     </div>
-                    <input type="range" v-model="content.imageY" min="-100" max="200" step="1" class="w-full">
                 </div>
             </section>
 
             <section class="bg-gray-50 p-4 rounded-xl border">
-                <h3 class="font-bold text-sm text-gray-500 mb-3">品牌 Logo</h3>
-                <button @click="$refs.logoInput.click()" class="w-full py-2 bg-white border rounded text-sm">上传左下角 Logo</button>
+                <h3 class="font-bold text-sm text-gray-500 mb-3">底部胶囊栏设置</h3>
+                <div v-for="(item, index) in footerIcons" :key="index" class="mb-4 p-2 bg-white rounded border">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-600 rounded-full flex-shrink-0 overflow-hidden cursor-pointer" @click="triggerIconUpload(index)">
+                            <img :src="item.icon" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1">
+                            <input v-model="item.mainText" class="w-full text-xs font-bold border-b mb-1 focus:outline-none" placeholder="主标题">
+                            <input v-model="item.subText" class="w-full text-[10px] text-gray-400 focus:outline-none" placeholder="副标题">
+                        </div>
+                    </div>
+                    <input type="file" :ref="'iconRef' + index" hidden @change="handleIconUpload($event, index)">
+                </div>
+                <button @click="$refs.logoInput.click()" class="w-full py-2 bg-gray-100 border rounded text-xs">更换左下角 Logo</button>
                 <input type="file" ref="logoInput" hidden @change="handleLogoUpload">
             </section>
         </div>
 
-        <button @click="downloadPoster" class="w-full bg-black text-white py-4 rounded-2xl font-bold mt-8 shadow-lg hover:opacity-90">
-            保存高清海报
-        </button>
+        <button @click="downloadPoster" class="w-full bg-black text-white py-4 rounded-2xl font-bold mt-8">保存图片</button>
     </div>
 
     <div class="flex-1 flex justify-center items-start">
         <div id="poster-canvas" class="poster-canvas bg-white" ref="posterCanvas">
             
-            <div class="px-10 pt-14">
+            <div class="px-10 pt-14 relative z-10">
                 <h1 class="text-4xl font-black text-gray-900 leading-tight">
                     {{content.mock_title_prefix}} 
                     <span class="text-blue-600">{{content.mock_title_core}}</span>
                 </h1>
-                <p class="text-xl mt-1 font-medium text-gray-500 tracking-tight">{{content.mock_subtitle}}</p>
+                <p class="text-xl mt-1 font-medium text-gray-500">{{content.mock_subtitle}}</p>
                 
                 <div class="mt-5 quote-box">
                     <i class="fa-solid fa-quote-right quote-icon"></i>
@@ -117,48 +133,30 @@
                 </div>
             </div>
 
-            <div class="free-image-container px-4" :style="{ marginTop: content.imageY + 'px' }">
+            <div class="free-image-container" :style="{ transform: `translateY(${content.imageY}px)` }">
                 <img v-if="content.screenUrl" 
                      :src="content.screenUrl" 
                      class="resizable-image"
                      :style="{ transform: `scale(${content.imageScale})` }">
             </div>
 
-            <div class="absolute bottom-6 w-full px-8 flex justify-between items-center">
-                <img :src="config.logoUrl" class="h-8 object-contain">
+            <div class="absolute bottom-8 w-full px-8 flex justify-between items-center">
+                <img :src="config.logoUrl" class="h-8 max-w-[120px] object-contain">
 
                 <div class="capsule-footer">
-                    <div class="footer-item">
+                    <div v-for="item in footerIcons" class="footer-item">
                         <div class="footer-icon-circle">
-                            <i class="fa-solid fa-link text-[12px]"></i>
+                            <img :src="item.icon">
                         </div>
                         <div class="footer-text-group">
-                            <span class="footer-text-main">小程序</span>
-                            <span class="footer-text-sub">定制开发</span>
-                        </div>
-                    </div>
-                    <div class="footer-item">
-                        <div class="footer-icon-circle">
-                            <i class="fa-solid fa-a text-[12px]"></i>
-                        </div>
-                        <div class="footer-text-group">
-                            <span class="footer-text-main">APP</span>
-                            <span class="footer-text-sub">定制开发</span>
-                        </div>
-                    </div>
-                    <div class="footer-item">
-                        <div class="footer-icon-circle">
-                            <i class="fa-solid fa-table-cells-large text-[12px]"></i>
-                        </div>
-                        <div class="footer-text-group">
-                            <span class="footer-text-main">系统</span>
-                            <span class="footer-text-sub">定制开发</span>
+                            <span class="footer-text-main">{{item.mainText}}</span>
+                            <span class="footer-text-sub">{{item.subText}}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="absolute right-[-60px] top-1/2 -translate-y-1/2 text-[120px] font-black text-gray-50/80 pointer-events-none -z-10 rotate-90 opacity-20">
+            <div class="absolute right-[-40px] top-1/2 -translate-y-1/2 text-[100px] font-black text-gray-50 pointer-events-none -z-10 rotate-90">
                 GEEKDANCE
             </div>
         </div>
@@ -180,10 +178,17 @@
                 mock_title_core: 'AI Agent',
                 mock_subtitle: '自动监测库存数据 / 商品自动上架',
                 mock_quote: '自动完成商品上架 / 竞品监控 / 订单对账 / 库存预警等标准化运营动作',
-                screenUrl: 'https://img.js.design/assets/static/769f7c0260788647c2117565bc938596', // 默认占位图
+                screenUrl: 'https://img.js.design/assets/static/769f7c0260788647c2117565bc938596',
                 imageScale: 0.85,
                 imageY: 20
             });
+
+            // 胶囊栏数据结构：支持图标、主标、副标
+            const footerIcons = ref([
+                { mainText: '小程序', subText: '定制开发', icon: 'https://cdn-icons-png.flaticon.com/512/8202/8202937.png' },
+                { mainText: 'APP', subText: '定制开发', icon: 'https://cdn-icons-png.flaticon.com/512/2586/2586488.png' },
+                { mainText: '系统', subText: '定制开发', icon: 'https://cdn-icons-png.flaticon.com/512/2885/2885417.png' }
+            ]);
 
             const handleLogoUpload = (e) => {
                 const file = e.target.files[0];
@@ -195,20 +200,39 @@
                 if (file) content.value.screenUrl = URL.createObjectURL(file);
             };
 
+            // 触发对应索引的图标上传
+            const triggerIconUpload = (index) => {
+                const inputArr = [document.querySelector('input[ref="iconRef0"]'), null, null]; // 简化逻辑
+                // 直接通过 ref 触发
+                const target = document.querySelectorAll('input[type="file"]')[index + 2]; // 索引偏移，跳过主体和Logo
+                target.click();
+            };
+
+            const handleIconUpload = (e, index) => {
+                const file = e.target.files[0];
+                if (file) footerIcons.value[index].icon = URL.createObjectURL(file);
+            };
+
             const downloadPoster = () => {
                 const element = document.getElementById('poster-canvas');
                 html2canvas(element, { useCORS: true, scale: 3 }).then(canvas => {
                     const link = document.createElement('a');
-                    link.download = `GeekDance_Poster.png`;
+                    link.download = `Poster.png`;
                     link.href = canvas.toDataURL();
                     link.click();
                 });
             };
 
-            return { config, content, handleLogoUpload, handleScreenUpload, downloadPoster };
+            return { config, content, footerIcons, handleLogoUpload, handleScreenUpload, handleIconUpload, triggerIconUpload, downloadPoster };
         }
     }).mount('#app');
 </script>
+
+<div hidden>
+    <input type="file" @change="handleIconUpload($event, 0)">
+    <input type="file" @change="handleIconUpload($event, 1)">
+    <input type="file" @change="handleIconUpload($event, 2)">
+</div>
 
 </body>
 </html>
