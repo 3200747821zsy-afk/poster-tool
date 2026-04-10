@@ -2,51 +2,26 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>极客跳动 AIGC 海报生产系统 v2.5</title>
+    <title>极客跳动海报工厂 v2.6</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <script>
-        // 配置 Tailwind 主题色
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        geekred: '#EE2222', // GeekDance 品牌红
-                        geekblue: '#2563EB', // 品牌蓝
-                    }
-                }
-            }
-        }
-    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;300;400;500;700;900&display=swap');
         body { font-family: 'Noto Sans SC', sans-serif; background-color: #f3f4f6; color: #1f2937; }
-        
-        /* 编辑器面板样式 */
-        .editor-panel { width: 32%; background-color: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); height: 95vh; overflow-y: auto; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-        
-        /* 海报画布样式 */
-        .poster-canvas { width: 500px; height: 700px; background: #fafafa; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
-        
-        /* 输入组件通用样式 */
-        .input-item { border-bottom: 1px solid #f3f4f6; padding-bottom: 1rem; margin-bottom: 1rem; }
+        .editor-panel { width: 32%; background-color: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); height: 95vh; overflow-y: auto; }
+        .poster-canvas { width: 500px; height: 700px; background: white; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
         .input-field { width: 100%; margin-top: 0.25rem; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; }
-
-        /* [优化核心] 场景案例还原样式 */
-        .quote-box { background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 0.75rem; padding: 1rem; position: relative; }
+        
+        /* 引用框样式 */
+        .quote-box { background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 0.75rem; padding: 1rem; position: relative; }
         .quote-icon { position: absolute; right: -10px; top: -10px; font-size: 1.5rem; color: #fbbf24; background: white; padding: 2px; border-radius: 50%; }
-        
-        /* Mockup 渲染器：包含外壳、屏幕、阴影和笔 */
-        .mockup-frame { position: relative; width: 100%; height: 260px; background-size: contain; background-repeat: no-repeat; background-position: center bottom; margin-top: 1.5rem; }
-        /* 使用 CSS 伪元素模拟手写笔 */
-        .mockup-frame::after { content: ''; position: absolute; bottom: -15px; left: 50%; width: 120px; h-1; background: #333; transform: translateX(-50%); border-radius: 1rem; filter: blur(2px); }
-        .mockup-screen { position: absolute; left: 16%; top: 38.5%; width: 68%; height: 49%; background: #ccc; overflow: hidden; transform: perspective(800px) rotateX(25deg); }
-        
+
+        /* 自由图片容器 */
+        .free-image-container { width: 100%; margin-top: 1.5rem; display: flex; justify-content: center; align-items: flex-start; }
+        .resizable-image { max-width: 100%; cursor: move; transition: transform 0.2s; }
     </style>
 </head>
 <body class="p-4 flex">
@@ -55,133 +30,103 @@
 
     <div class="editor-panel">
         <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-            <i class="fa-solid fa-wand-magic-sparkles text-geekred"></i> 海报工厂
+            <i class="fa-solid fa-layer-group text-blue-600"></i> 海报编辑器
         </h2>
 
-        <div class="input-item">
-            <label class="block text-sm font-bold text-gray-700 mb-2">排版模板库</label>
-            <select v-model="currentTemplate" class="w-full p-2.5 border-2 rounded-xl bg-gray-50 focus:border-geekred">
-                <option value="distribution">01 | 业务分布页</option>
-                <option value="mockup_pro">02 | [还原] 场景案例 (Mockup)</option>
-            </select>
-        </div>
-
-        <div class="input-item bg-gray-50 p-4 rounded-xl border">
-            <h3 class="font-bold text-geekred mb-3">全局品牌设置</h3>
-            <label class="block text-xs text-gray-400">公司名称</label>
-            <input v-model="config.companyName" placeholder="如: 极客跳动 GeekDance" class="input-field mb-3">
-            
-            <div class="flex gap-4">
-                <div class="flex-1">
-                    <label class="block text-xs text-gray-400">品牌主色</label>
-                    <input v-model="config.brandColor" type="color" class="w-full h-10 mt-1 cursor-pointer border rounded">
+        <div class="space-y-6">
+            <section class="bg-gray-50 p-4 rounded-xl border">
+                <h3 class="font-bold text-blue-600 mb-3">1. 文本排版 (位置已上移)</h3>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <label class="text-xs text-gray-400">标题前缀</label>
+                    <input v-model="content.mock_title_prefix" type="text" class="input-field">
+                    <label class="text-xs text-gray-400">标题核心</label>
+                    <input v-model="content.mock_title_core" type="text" class="input-field">
                 </div>
-                <div class="flex-1">
-                    <button @click="$refs.logoInput.click()" class="w-full h-10 mt-5 text-sm bg-gray-100 rounded border hover:bg-gray-200">上传 Logo (PNG)</button>
-                    <input type="file" ref="logoInput" hidden @change="handleLogoUpload">
+                <label class="text-xs text-gray-400">副标题</label>
+                <input v-model="content.mock_subtitle" type="text" class="input-field mb-3">
+                <label class="text-xs text-gray-400">引用框内容</label>
+                <textarea v-model="content.mock_quote" class="input-field h-20"></textarea>
+            </section>
+
+            <section class="bg-gray-50 p-4 rounded-xl border">
+                <h3 class="font-bold text-blue-600 mb-3">2. 核心展示图片</h3>
+                <button @click="$refs.screenInput.click()" class="w-full py-3 bg-white border-2 border-dashed rounded-xl text-blue-600 font-medium hover:bg-blue-50">上传截图</button>
+                <input type="file" ref="screenInput" hidden @change="handleScreenUpload">
+                <div class="mt-3 flex items-center gap-4">
+                    <span class="text-xs text-gray-500">调整图片大小:</span>
+                    <input type="range" v-model="content.imageScale" min="0.5" max="1.5" step="0.01" class="flex-1">
                 </div>
-            </div>
+            </section>
+
+            <section class="bg-gray-50 p-4 rounded-xl border">
+                <h3 class="font-bold text-gray-700 mb-3">3. 底部品牌栏设置</h3>
+                <button @click="$refs.logoInput.click()" class="w-full py-2 bg-white border rounded text-sm mb-4">上传左下角 Logo</button>
+                <input type="file" ref="logoInput" hidden @change="handleLogoUpload">
+                
+                <div class="space-y-3">
+                    <label class="text-xs font-bold">右下角三个图标内容/图片</label>
+                    <div v-for="(item, index) in footerIcons" :key="index" class="flex items-center gap-2 bg-white p-2 rounded border">
+                        <img :src="item.url" class="w-6 h-6 object-contain">
+                        <input v-model="item.text" class="text-xs flex-1 border-none focus:ring-0">
+                        <button @click="triggerIconUpload(index)" class="text-[10px] bg-gray-100 p-1 rounded">更换</button>
+                        <input type="file" :ref="'iconInput'+index" hidden @change="handleIconUpload($event, index)">
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <div v-if="currentTemplate === 'mockup_pro'" class="space-y-4">
-            <h3 class="font-bold text-geekblue mb-1">场景案例编辑 (百分百还原模式)</h3>
-            <p class="text-xs text-gray-400">注意：此模板高度参考用户提供的跨境贸易案例图。</p>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <label>标题前缀: <input v-model="content.mock_title_prefix" type="text" class="input-field"></label>
-                <label>标题核心: <input v-model="content.mock_title_core" type="text" class="input-field text-geekblue"></label>
-            </div>
-            <label class="block mt-2">副标题文案: <input v-model="content.mock_subtitle" type="text" class="input-field"></label>
-            
-            <label class="block mt-4">引用框内容: 
-                <textarea v-model="content.mock_quote" class="input-field h-20" rows="3"></textarea>
-            </label>
-            
-            <button @click="$refs.screenInput.click()" class="w-full text-sm py-3 mt-4 bg-geekblue/10 text-geekblue rounded-xl font-medium border border-geekblue/20 hover:bg-geekblue/20">上传您的屏幕截图 (适配 Mockup)</button>
-            <input type="file" ref="screenInput" hidden @change="handleScreenUpload">
-        </div>
-
-        <div v-if="currentTemplate === 'distribution'" class="space-y-4">
-            <h3 class="font-bold text-geekred">业务分布编辑</h3>
-            <textarea v-model="content.dist_domestic" placeholder="国内城市" class="w-full p-2 border rounded text-sm" rows="3"></textarea>
-            <textarea v-model="content.dist_oversea" placeholder="海外国家" class="w-full p-2 border rounded text-sm" rows="3"></textarea>
-        </div>
-
-        <div class="mt-10 pt-6 border-t">
-            <button @click="downloadPoster" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-black transition flex items-center justify-center gap-2 shadow-lg">
-                <i class="fa-solid fa-download"></i> 下载高清 PNG 海报
-            </button>
-        </div>
+        <button @click="downloadPoster" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold mt-8 shadow-lg hover:bg-blue-700">
+            下载高清 PNG 海报
+        </button>
     </div>
 
     <div class="flex-1 flex justify-center items-start">
-        <div id="poster-canvas" class="poster-canvas relative bg-white" ref="posterCanvas">
+        <div id="poster-canvas" class="poster-canvas bg-white" ref="posterCanvas">
             
-            <div class="absolute right-[-100px] bottom-16 text-[180px] font-black text-gray-100/30 tracking-tightest pointer-events-none opacity-50" style="line-height:0.75">
-                GEEK<br>DANCE
-            </div>
-
-            <div class="p-10 flex justify-between items-end">
-                <div class="h-10 w-40 flex items-center">
-                    <img :src="config.logoUrl" class="max-h-full max-w-full object-contain object-left" alt="Brand Logo">
-                </div>
-                <div class="flex flex-col items-end">
-                    <div class="w-16 h-1 mb-1" :style="{backgroundColor: config.brandColor}"></div>
-                    <div class="text-[10px] font-bold text-gray-400 tracking-tighter">GEEKDANCE TECHNOLOGY</div>
-                </div>
-            </div>
-
-            <div v-if="currentTemplate === 'distribution'" class="px-10 mt-6 relative">
-                <h1 class="text-5xl font-light text-gray-400">极客跳动</h1>
-                <h2 class="text-5xl font-bold" :style="{color: config.brandColor}">业务分布</h2>
-                <div class="mt-10 flex gap-6">
-                    <span class="text-5xl font-light" :style="{color: config.brandColor}">国内</span>
-                    <p class="text-xl text-gray-600 leading-relaxed pt-2 pl-6 border-l">{{content.dist_domestic}}</p>
-                </div>
-                <div class="mt-10 flex gap-6">
-                    <span class="text-5xl font-light" :style="{color: config.brandColor}">海外</span>
-                    <p class="text-xl text-gray-600 leading-relaxed pt-2 pl-6 border-l">{{content.dist_oversea}}</p>
-                </div>
-            </div>
-
-            <div v-if="currentTemplate === 'mockup_pro'" class="px-10 mt-6">
+            <div class="px-10 pt-16">
                 <h1 class="text-4xl font-extrabold text-gray-900 leading-tight">
                     {{content.mock_title_prefix}} 
-                    <span class="text-geekblue">{{content.mock_title_core}}</span>
+                    <span class="text-blue-600">{{content.mock_title_core}}</span>
                 </h1>
-                <p class="text-xl mt-3 font-light text-gray-600 tracking-tight">{{content.mock_subtitle}}</p>
+                <p class="text-xl mt-2 font-light text-gray-600">{{content.mock_subtitle}}</p>
                 
-                <div class="mt-8 quote-box">
+                <div class="mt-6 quote-box">
                     <i class="fa-solid fa-lightbulb quote-icon"></i>
-                    <p class="text-sm text-geekblue/90 leading-relaxed">
+                    <p class="text-[13px] text-blue-700/80 leading-relaxed font-medium">
                         {{content.mock_quote}}
                     </p>
                 </div>
+            </div>
 
-                <div class="mockup-frame" style="background-image: url('https://geekdance.com/wp-content/uploads/2021/01/tablet_mockup.png');">
-                    <div class="mockup-screen">
-                        <img v-if="content.screenUrl" :src="content.screenUrl" class="w-full h-full object-cover object-top">
-                        <div v-else class="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-center p-4">
-                            <i class="fa-solid fa-tablet-screen-button text-gray-300 text-5xl mb-3"></i>
-                            <p class="text-xs text-gray-400">待上传屏幕截图</p>
+            <div class="free-image-container px-10">
+                <img v-if="content.screenUrl" 
+                     :src="content.screenUrl" 
+                     class="resizable-image"
+                     :style="{ transform: `scale(${content.imageScale})` }">
+                <div v-else class="mt-20 w-full h-40 bg-gray-50 border-2 border-dashed rounded-2xl flex items-center justify-center text-gray-300">
+                    等待图片上传
+                </div>
+            </div>
+
+            <div class="absolute bottom-0 w-full px-10 py-8 flex justify-between items-end bg-gradient-to-t from-white via-white to-transparent">
+                <div class="h-12 w-32 flex items-center">
+                    <img :src="config.logoUrl" class="max-h-full max-w-full object-contain object-left">
+                </div>
+
+                <div class="flex flex-col gap-2 pb-1">
+                    <div v-for="icon in footerIcons" class="flex items-center justify-end gap-2">
+                        <span class="text-[11px] font-bold text-gray-700 tracking-tighter">{{icon.text}}</span>
+                        <div class="w-6 h-6 flex items-center justify-center">
+                            <img :src="icon.url" class="max-w-full max-h-full object-contain">
                         </div>
                     </div>
                 </div>
-
-                <div class="text-center mt-12 text-sm text-gray-400 font-light tracking-widest">
-                    &lt;&lt;&lt;&lt; 欢迎咨询定制 AI Agent
-                </div>
             </div>
 
-            <div class="absolute bottom-0 w-full p-6 bg-gray-50 flex justify-between items-center border-t shadow-inner">
-                <div class="font-bold text-sm tracking-tight text-gray-800">{{config.companyName}}</div>
-                <div class="flex gap-4 text-[11px] font-bold">
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-cube text-geekblue"></i> 小程序定制开发</span>
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-mobile-screen text-geekred"></i> APP定制开发</span>
-                </div>
+            <div class="absolute right-[-80px] bottom-24 text-[150px] font-black text-gray-100/40 pointer-events-none -z-10" style="line-height:0.8">
+                GEEK<br>DANCE
             </div>
         </div>
-        <p class="mt-4 text-gray-400 text-sm italic">预览画布基于 A4 营销比例适配</p>
     </div>
 
 </div>
@@ -191,65 +136,64 @@
 
     createApp({
         setup() {
-            // [重构难点] 设置默认模板为场景案例
-            const currentTemplate = ref('mockup_pro');
-            
-            // 默认全局品牌配置
             const config = ref({
-                brandColor: '#EE2222',
-                companyName: '极客跳动 GeekDance',
-                logoUrl: 'https://geekdance.com/wp-content/uploads/2021/01/p_01.png' // GeekDance Logo
+                logoUrl: 'https://geekdance.com/wp-content/uploads/2021/01/p_01.png'
             });
 
-            // 营销内容数据 (参考图百分百还原数据)
             const content = ref({
-                // 旧模板数据
-                dist_domestic: '深圳、广州、香港、台湾、北京、上海...',
-                dist_oversea: '美国、加拿大、新加坡、日本...',
-                
-                // [优化核心] 新模板还原数据
                 mock_title_prefix: '跨境贸易',
                 mock_title_core: 'AI Agent',
                 mock_subtitle: '自动监测库存数据 / 商品自动上架',
                 mock_quote: '自动完成商品上架 / 竞品监控 / 订单对账 / 库存预警等标准化运营动作',
-                screenUrl: '' // 用户上传的截图将保存在这里
+                screenUrl: '',
+                imageScale: 1.0
             });
 
-            // 文件上传处理逻辑
+            const footerIcons = ref([
+                { text: '小程序定制开发', url: 'https://cdn-icons-png.flaticon.com/512/8202/8202937.png' },
+                { text: 'APP定制开发', url: 'https://cdn-icons-png.flaticon.com/512/2586/2586488.png' },
+                { text: '系统定制开发', url: 'https://cdn-icons-png.flaticon.com/512/2885/2885417.png' }
+            ]);
+
             const handleLogoUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) config.value.logoUrl = URL.createObjectURL(file);
             };
+
             const handleScreenUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) content.value.screenUrl = URL.createObjectURL(file);
             };
 
-            // 下载海报逻辑 (html2canvas实现)
+            const triggerIconUpload = (index) => {
+                const refs = document.querySelectorAll('input[type="file"]');
+                // 找到对应的隐藏input并触发
+                document.getElementsByName('iconInput')[index].click();
+            };
+
+            const handleIconUpload = (e, index) => {
+                const file = e.target.files[0];
+                if (file) footerIcons.value[index].url = URL.createObjectURL(file);
+            };
+
             const downloadPoster = () => {
                 const element = document.getElementById('poster-canvas');
-                html2canvas(element, { 
-                    useCORS: true, // 允许跨域图片下载
-                    scale: 3, // 提高导出清晰度 (3倍)
-                    logging: false // 关闭日志
-                }).then(canvas => {
+                html2canvas(element, { useCORS: true, scale: 3 }).then(canvas => {
                     const link = document.createElement('a');
-                    link.download = `GEEKDANCE_Marketing_Poster_${Date.now()}.png`;
-                    link.href = canvas.toDataURL('image/png');
+                    link.download = `Poster_${Date.now()}.png`;
+                    link.href = canvas.toDataURL();
                     link.click();
                 });
             };
 
-            return {
-                currentTemplate,
-                config,
-                content,
-                handleLogoUpload,
-                handleScreenUpload,
-                downloadPoster
-            };
+            return { config, content, footerIcons, handleLogoUpload, handleScreenUpload, handleIconUpload, downloadPoster };
         }
     }).mount('#app');
 </script>
+
+<div hidden>
+    <input type="file" name="iconInput" v-for="i in 3">
+</div>
+
 </body>
 </html>
