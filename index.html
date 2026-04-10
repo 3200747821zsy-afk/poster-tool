@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>极客跳动海报工厂 v2.6</title>
+    <title>极客跳动海报工厂 v2.7 - 精准底栏版</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -11,17 +11,43 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@100;300;400;500;700;900&display=swap');
         body { font-family: 'Noto Sans SC', sans-serif; background-color: #f3f4f6; color: #1f2937; }
-        .editor-panel { width: 32%; background-color: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); height: 95vh; overflow-y: auto; }
+        .editor-panel { width: 30%; background-color: white; padding: 1.5rem; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); height: 95vh; overflow-y: auto; }
         .poster-canvas { width: 500px; height: 700px; background: white; position: relative; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.1); flex-shrink: 0; }
-        .input-field { width: 100%; margin-top: 0.25rem; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; }
         
         /* 引用框样式 */
         .quote-box { background: rgba(37, 99, 235, 0.05); border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 0.75rem; padding: 1rem; position: relative; }
         .quote-icon { position: absolute; right: -10px; top: -10px; font-size: 1.5rem; color: #fbbf24; background: white; padding: 2px; border-radius: 50%; }
 
         /* 自由图片容器 */
-        .free-image-container { width: 100%; margin-top: 1.5rem; display: flex; justify-content: center; align-items: flex-start; }
-        .resizable-image { max-width: 100%; cursor: move; transition: transform 0.2s; }
+        .free-image-container { width: 100%; margin-top: 1rem; display: flex; justify-content: center; align-items: flex-start; }
+        .resizable-image { max-width: 100%; transition: transform 0.1s; }
+
+        /* [核心更新] 100% 还原胶囊底栏 */
+        .capsule-footer {
+            background: white;
+            border-radius: 999px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            padding: 8px 24px;
+            gap: 20px;
+        }
+        .footer-item { display: flex; align-items: center; gap: 8px; }
+        .footer-icon-circle {
+            width: 32px;
+            height: 32px;
+            background: #3b82f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .footer-text-group { display: flex; flex-direction: column; line-height: 1.1; }
+        .footer-text-main { font-size: 13px; font-weight: 900; color: #000; }
+        .footer-text-sub { font-size: 9px; color: #333; font-weight: 500; }
     </style>
 </head>
 <body class="p-4 flex">
@@ -29,102 +55,111 @@
 <div id="app" class="flex-1 flex gap-6">
 
     <div class="editor-panel">
-        <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
-            <i class="fa-solid fa-layer-group text-blue-600"></i> 海报编辑器
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+            <i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> 海报精准优化
         </h2>
 
         <div class="space-y-6">
             <section class="bg-gray-50 p-4 rounded-xl border">
-                <h3 class="font-bold text-blue-600 mb-3">1. 文本排版 (位置已上移)</h3>
-                <div class="grid grid-cols-2 gap-3 mb-3">
-                    <label class="text-xs text-gray-400">标题前缀</label>
-                    <input v-model="content.mock_title_prefix" type="text" class="input-field">
-                    <label class="text-xs text-gray-400">标题核心</label>
-                    <input v-model="content.mock_title_core" type="text" class="input-field">
-                </div>
-                <label class="text-xs text-gray-400">副标题</label>
-                <input v-model="content.mock_subtitle" type="text" class="input-field mb-3">
-                <label class="text-xs text-gray-400">引用框内容</label>
-                <textarea v-model="content.mock_quote" class="input-field h-20"></textarea>
+                <h3 class="font-bold text-sm text-gray-500 mb-3">文字内容</h3>
+                <input v-model="content.mock_title_prefix" type="text" placeholder="标题前缀" class="w-full p-2 border rounded mb-2 text-sm">
+                <input v-model="content.mock_title_core" type="text" placeholder="标题核心" class="w-full p-2 border rounded mb-2 text-sm">
+                <input v-model="content.mock_subtitle" type="text" placeholder="副标题" class="w-full p-2 border rounded mb-2 text-sm">
+                <textarea v-model="content.mock_quote" class="w-full p-2 border rounded text-sm h-20"></textarea>
             </section>
 
             <section class="bg-gray-50 p-4 rounded-xl border">
-                <h3 class="font-bold text-blue-600 mb-3">2. 核心展示图片</h3>
-                <button @click="$refs.screenInput.click()" class="w-full py-3 bg-white border-2 border-dashed rounded-xl text-blue-600 font-medium hover:bg-blue-50">上传截图</button>
+                <h3 class="font-bold text-sm text-gray-500 mb-3">主体截图</h3>
+                <button @click="$refs.screenInput.click()" class="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">更换截图</button>
                 <input type="file" ref="screenInput" hidden @change="handleScreenUpload">
-                <div class="mt-3 flex items-center gap-4">
-                    <span class="text-xs text-gray-500">调整图片大小:</span>
-                    <input type="range" v-model="content.imageScale" min="0.5" max="1.5" step="0.01" class="flex-1">
+                <div class="mt-4">
+                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>缩放图片</span>
+                        <span>{{Math.round(content.imageScale*100)}}%</span>
+                    </div>
+                    <input type="range" v-model="content.imageScale" min="0.3" max="2.0" step="0.01" class="w-full">
+                </div>
+                <div class="mt-4">
+                    <div class="flex justify-between text-xs text-gray-400 mb-1">
+                        <span>上下位置</span>
+                    </div>
+                    <input type="range" v-model="content.imageY" min="-100" max="200" step="1" class="w-full">
                 </div>
             </section>
 
             <section class="bg-gray-50 p-4 rounded-xl border">
-                <h3 class="font-bold text-gray-700 mb-3">3. 底部品牌栏设置</h3>
-                <button @click="$refs.logoInput.click()" class="w-full py-2 bg-white border rounded text-sm mb-4">上传左下角 Logo</button>
+                <h3 class="font-bold text-sm text-gray-500 mb-3">品牌 Logo</h3>
+                <button @click="$refs.logoInput.click()" class="w-full py-2 bg-white border rounded text-sm">上传左下角 Logo</button>
                 <input type="file" ref="logoInput" hidden @change="handleLogoUpload">
-                
-                <div class="space-y-3">
-                    <label class="text-xs font-bold">右下角三个图标内容/图片</label>
-                    <div v-for="(item, index) in footerIcons" :key="index" class="flex items-center gap-2 bg-white p-2 rounded border">
-                        <img :src="item.url" class="w-6 h-6 object-contain">
-                        <input v-model="item.text" class="text-xs flex-1 border-none focus:ring-0">
-                        <button @click="triggerIconUpload(index)" class="text-[10px] bg-gray-100 p-1 rounded">更换</button>
-                        <input type="file" :ref="'iconInput'+index" hidden @change="handleIconUpload($event, index)">
-                    </div>
-                </div>
             </section>
         </div>
 
-        <button @click="downloadPoster" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold mt-8 shadow-lg hover:bg-blue-700">
-            下载高清 PNG 海报
+        <button @click="downloadPoster" class="w-full bg-black text-white py-4 rounded-2xl font-bold mt-8 shadow-lg hover:opacity-90">
+            保存高清海报
         </button>
     </div>
 
     <div class="flex-1 flex justify-center items-start">
         <div id="poster-canvas" class="poster-canvas bg-white" ref="posterCanvas">
             
-            <div class="px-10 pt-16">
-                <h1 class="text-4xl font-extrabold text-gray-900 leading-tight">
+            <div class="px-10 pt-14">
+                <h1 class="text-4xl font-black text-gray-900 leading-tight">
                     {{content.mock_title_prefix}} 
                     <span class="text-blue-600">{{content.mock_title_core}}</span>
                 </h1>
-                <p class="text-xl mt-2 font-light text-gray-600">{{content.mock_subtitle}}</p>
+                <p class="text-xl mt-1 font-medium text-gray-500 tracking-tight">{{content.mock_subtitle}}</p>
                 
-                <div class="mt-6 quote-box">
-                    <i class="fa-solid fa-lightbulb quote-icon"></i>
-                    <p class="text-[13px] text-blue-700/80 leading-relaxed font-medium">
+                <div class="mt-5 quote-box">
+                    <i class="fa-solid fa-quote-right quote-icon"></i>
+                    <p class="text-[13px] text-blue-700/80 leading-relaxed font-bold">
                         {{content.mock_quote}}
                     </p>
                 </div>
             </div>
 
-            <div class="free-image-container px-10">
+            <div class="free-image-container px-4" :style="{ marginTop: content.imageY + 'px' }">
                 <img v-if="content.screenUrl" 
                      :src="content.screenUrl" 
                      class="resizable-image"
                      :style="{ transform: `scale(${content.imageScale})` }">
-                <div v-else class="mt-20 w-full h-40 bg-gray-50 border-2 border-dashed rounded-2xl flex items-center justify-center text-gray-300">
-                    等待图片上传
-                </div>
             </div>
 
-            <div class="absolute bottom-0 w-full px-10 py-8 flex justify-between items-end bg-gradient-to-t from-white via-white to-transparent">
-                <div class="h-12 w-32 flex items-center">
-                    <img :src="config.logoUrl" class="max-h-full max-w-full object-contain object-left">
-                </div>
+            <div class="absolute bottom-6 w-full px-8 flex justify-between items-center">
+                <img :src="config.logoUrl" class="h-8 object-contain">
 
-                <div class="flex flex-col gap-2 pb-1">
-                    <div v-for="icon in footerIcons" class="flex items-center justify-end gap-2">
-                        <span class="text-[11px] font-bold text-gray-700 tracking-tighter">{{icon.text}}</span>
-                        <div class="w-6 h-6 flex items-center justify-center">
-                            <img :src="icon.url" class="max-w-full max-h-full object-contain">
+                <div class="capsule-footer">
+                    <div class="footer-item">
+                        <div class="footer-icon-circle">
+                            <i class="fa-solid fa-link text-[12px]"></i>
+                        </div>
+                        <div class="footer-text-group">
+                            <span class="footer-text-main">小程序</span>
+                            <span class="footer-text-sub">定制开发</span>
+                        </div>
+                    </div>
+                    <div class="footer-item">
+                        <div class="footer-icon-circle">
+                            <i class="fa-solid fa-a text-[12px]"></i>
+                        </div>
+                        <div class="footer-text-group">
+                            <span class="footer-text-main">APP</span>
+                            <span class="footer-text-sub">定制开发</span>
+                        </div>
+                    </div>
+                    <div class="footer-item">
+                        <div class="footer-icon-circle">
+                            <i class="fa-solid fa-table-cells-large text-[12px]"></i>
+                        </div>
+                        <div class="footer-text-group">
+                            <span class="footer-text-main">系统</span>
+                            <span class="footer-text-sub">定制开发</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="absolute right-[-80px] bottom-24 text-[150px] font-black text-gray-100/40 pointer-events-none -z-10" style="line-height:0.8">
-                GEEK<br>DANCE
+            <div class="absolute right-[-60px] top-1/2 -translate-y-1/2 text-[120px] font-black text-gray-50/80 pointer-events-none -z-10 rotate-90 opacity-20">
+                GEEKDANCE
             </div>
         </div>
     </div>
@@ -145,15 +180,10 @@
                 mock_title_core: 'AI Agent',
                 mock_subtitle: '自动监测库存数据 / 商品自动上架',
                 mock_quote: '自动完成商品上架 / 竞品监控 / 订单对账 / 库存预警等标准化运营动作',
-                screenUrl: '',
-                imageScale: 1.0
+                screenUrl: 'https://img.js.design/assets/static/769f7c0260788647c2117565bc938596', // 默认占位图
+                imageScale: 0.85,
+                imageY: 20
             });
-
-            const footerIcons = ref([
-                { text: '小程序定制开发', url: 'https://cdn-icons-png.flaticon.com/512/8202/8202937.png' },
-                { text: 'APP定制开发', url: 'https://cdn-icons-png.flaticon.com/512/2586/2586488.png' },
-                { text: '系统定制开发', url: 'https://cdn-icons-png.flaticon.com/512/2885/2885417.png' }
-            ]);
 
             const handleLogoUpload = (e) => {
                 const file = e.target.files[0];
@@ -165,35 +195,20 @@
                 if (file) content.value.screenUrl = URL.createObjectURL(file);
             };
 
-            const triggerIconUpload = (index) => {
-                const refs = document.querySelectorAll('input[type="file"]');
-                // 找到对应的隐藏input并触发
-                document.getElementsByName('iconInput')[index].click();
-            };
-
-            const handleIconUpload = (e, index) => {
-                const file = e.target.files[0];
-                if (file) footerIcons.value[index].url = URL.createObjectURL(file);
-            };
-
             const downloadPoster = () => {
                 const element = document.getElementById('poster-canvas');
                 html2canvas(element, { useCORS: true, scale: 3 }).then(canvas => {
                     const link = document.createElement('a');
-                    link.download = `Poster_${Date.now()}.png`;
+                    link.download = `GeekDance_Poster.png`;
                     link.href = canvas.toDataURL();
                     link.click();
                 });
             };
 
-            return { config, content, footerIcons, handleLogoUpload, handleScreenUpload, handleIconUpload, downloadPoster };
+            return { config, content, handleLogoUpload, handleScreenUpload, downloadPoster };
         }
     }).mount('#app');
 </script>
-
-<div hidden>
-    <input type="file" name="iconInput" v-for="i in 3">
-</div>
 
 </body>
 </html>
